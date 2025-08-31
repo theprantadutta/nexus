@@ -9,7 +9,7 @@ import {
   query,
   where,
   orderBy,
-  limit,
+  limit as firestoreLimit,
   startAfter,
   increment
 } from 'firebase/firestore';
@@ -23,7 +23,7 @@ class DatabaseService {
       let q = query(
         collection(db, collections.circles),
         orderBy('createdAt', 'desc'),
-        limit(limitCount)
+        firestoreLimit(limitCount)
       );
 
       if (lastDoc) {
@@ -139,7 +139,7 @@ class DatabaseService {
       let q = query(
         collection(db, collections.meetups),
         orderBy('date', 'asc'),
-        limit(limitCount)
+        firestoreLimit(limitCount)
       );
 
       if (circleId) {
@@ -147,7 +147,7 @@ class DatabaseService {
           collection(db, collections.meetups),
           where('circleId', '==', circleId),
           orderBy('date', 'asc'),
-          limit(limitCount)
+          firestoreLimit(limitCount)
         );
       }
 
@@ -635,6 +635,196 @@ class DatabaseService {
       return {
         success: false,
         error: error.message || 'Failed to fetch user meetups',
+      };
+    }
+  }
+
+  // Chat and messaging methods
+
+  // Send message
+  async sendMessage(chatId: string, senderId: string, text: string, type: 'text' | 'image' = 'text'): Promise<ApiResponse<string>> {
+    try {
+      const messageData = {
+        chatId,
+        senderId,
+        text,
+        type,
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      };
+
+      const messageRef = await addDoc(collection(db, collections.messages), messageData);
+
+      // Update chat's last message
+      const chatRef = doc(db, collections.chats, chatId);
+      await updateDoc(chatRef, {
+        lastMessage: {
+          text,
+          timestamp: messageData.timestamp,
+          senderId,
+        },
+        updatedAt: messageData.timestamp,
+      });
+
+      return {
+        success: true,
+        data: messageRef.id,
+      };
+    } catch (error: any) {
+      console.error('Send message error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to send message',
+      };
+    }
+  }
+
+  // Get chat messages
+  async getChatMessages(chatId: string, limit: number = 50): Promise<ApiResponse<any[]>> {
+    try {
+      const messagesQuery = query(
+        collection(db, collections.messages),
+        where('chatId', '==', chatId),
+        orderBy('timestamp', 'desc'),
+        firestoreLimit(limit)
+      );
+
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const messages = messagesSnapshot.docs.map(doc => ({
+        $id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        success: true,
+        data: messages.reverse(), // Reverse to show oldest first
+      };
+    } catch (error: any) {
+      console.error('Get chat messages error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch messages',
+      };
+    }
+  }
+
+  // Get user chats
+  async getUserChats(userId: string): Promise<ApiResponse<any[]>> {
+    try {
+      const chatsQuery = query(
+        collection(db, collections.chats),
+        where('participants', 'array-contains', userId),
+        orderBy('updatedAt', 'desc')
+      );
+
+      const chatsSnapshot = await getDocs(chatsQuery);
+      const chats = chatsSnapshot.docs.map(doc => ({
+        $id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        success: true,
+        data: chats,
+      };
+    } catch (error: any) {
+      console.error('Get user chats error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch chats',
+      };
+    }
+  }
+
+  // Create or get direct chat
+  async createDirectChat(userId1: string, userId2: string): Promise<ApiResponse<string>> {
+    try {
+      // Check if chat already exists
+      const existingChatQuery = query(
+        collection(db, collections.chats),
+        where('type', '==', 'direct'),
+        where('participants', 'array-contains', userId1)
+      );
+
+      const existingChats = await getDocs(existingChatQuery);
+      const directChat = existingChats.docs.find(doc => {
+        const participants = doc.data().participants;
+        return participants.includes(userId2);
+      });
+
+      if (directChat) {
+        return {
+          success: true,
+          data: directChat.id,
+        };
+      }
+
+      // Create new direct chat
+      const chatData = {
+        type: 'direct',
+        participants: [userId1, userId2],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastMessage: null,
+      };
+
+      const chatRef = await addDoc(collection(db, collections.chats), chatData);
+
+      return {
+        success: true,
+        data: chatRef.id,
+      };
+    } catch (error: any) {
+      console.error('Create direct chat error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to create chat',
+      };
+    }
+  }
+
+  // Create group chat
+  async createGroupChat(name: string, participants: string[], createdBy: string): Promise<ApiResponse<string>> {
+    try {
+      const chatData = {
+        type: 'group',
+        name,
+        participants,
+        createdBy,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastMessage: null,
+      };
+
+      const chatRef = await addDoc(collection(db, collections.chats), chatData);
+
+      return {
+        success: true,
+        data: chatRef.id,
+      };
+    } catch (error: any) {
+      console.error('Create group chat error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to create group chat',
+      };
+    }
+  }
+
+  // Update message status
+  async updateMessageStatus(messageId: string, status: 'sent' | 'delivered' | 'read'): Promise<ApiResponse<null>> {
+    try {
+      const messageRef = doc(db, collections.messages, messageId);
+      await updateDoc(messageRef, { status });
+
+      return {
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('Update message status error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update message status',
       };
     }
   }

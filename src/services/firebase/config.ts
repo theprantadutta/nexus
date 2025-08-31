@@ -20,6 +20,7 @@ export const collections = {
   meetups: 'meetups',
   memberships: 'memberships',
   attendances: 'attendances',
+  chats: 'chats',
   messages: 'messages',
 };
 
