@@ -12,8 +12,6 @@ import { useAppStore } from '../store/useAppStore';
 import { router } from 'expo-router';
 
 const SplashScreen = () => {
-  const { checkAuth, isLoading } = useAppStore();
-  
   // Animation values
   const logoScale = useSharedValue(0);
   const logoOpacity = useSharedValue(0);
@@ -22,31 +20,16 @@ const SplashScreen = () => {
   const taglineOpacity = useSharedValue(0);
   const taglineTranslateY = useSharedValue(20);
 
-  // Navigate to next screen
-  const navigateToNext = () => {
-    // Check authentication status and navigate accordingly
-    checkAuth().then(() => {
-      // Navigation will be handled by the auth state in the main layout
-    });
-  };
-
   useEffect(() => {
     // Start animations sequence
     logoScale.value = withSpring(1, { damping: 15, stiffness: 150 });
     logoOpacity.value = withSpring(1, { damping: 15 });
-    
+
     titleOpacity.value = withDelay(300, withSpring(1));
     titleTranslateY.value = withDelay(300, withSpring(0));
-    
+
     taglineOpacity.value = withDelay(600, withSpring(1));
     taglineTranslateY.value = withDelay(600, withSpring(0));
-
-    // Navigate after animations complete
-    const timer = setTimeout(() => {
-      runOnJS(navigateToNext)();
-    }, 2000);
-
-    return () => clearTimeout(timer);
   }, []);
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
@@ -84,11 +67,9 @@ const SplashScreen = () => {
       </Animated.View>
 
       {/* Loading indicator */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingSpinner} />
-        </View>
-      )}
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingSpinner} />
+      </View>
     </View>
   );
 };

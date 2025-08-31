@@ -3,6 +3,28 @@ import { User, Circle, Meetup, Membership } from '../types';
 import { authService } from '../services/firebase/auth';
 import { databaseService } from '../services/firebase/database';
 
+// Helper functions for onboarding status
+const ONBOARDING_KEY = '@nexus_onboarding_completed';
+
+const checkOnboardingStatus = async (): Promise<boolean> => {
+  try {
+    // Simple in-memory check for demo
+    return (global as any).__NEXUS_ONBOARDING_COMPLETED__ || false;
+  } catch (error) {
+    console.error('Error checking onboarding status:', error);
+    return false;
+  }
+};
+
+const storeOnboardingStatus = async (completed: boolean): Promise<void> => {
+  try {
+    // Simple in-memory storage for demo
+    (global as any).__NEXUS_ONBOARDING_COMPLETED__ = completed;
+  } catch (error) {
+    console.error('Error storing onboarding status:', error);
+  }
+};
+
 interface AppState {
   // Auth state
   user: User | null;
@@ -123,29 +145,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  setOnboarding: (value: boolean) => {
+    set({ isOnboarding: value });
+    // Store onboarding completion status
+    if (!value) {
+      storeOnboardingStatus(true);
+    }
+  },
+
   checkAuth: async () => {
     set({ isLoading: true });
     try {
       const user = await authService.getCurrentUser();
       if (user) {
-        set({ 
-          user, 
+        set({
+          user,
           isAuthenticated: true,
           isOnboarding: false,
         });
         // Load user data
         await get().loadUserMemberships();
       } else {
-        set({ 
-          user: null, 
+        // Check if user has completed onboarding before
+        const hasCompletedOnboarding = await checkOnboardingStatus();
+        set({
+          user: null,
           isAuthenticated: false,
-          isOnboarding: true,
+          isOnboarding: !hasCompletedOnboarding,
         });
       }
     } catch (error) {
       console.error('Check auth error:', error);
-      set({ 
-        user: null, 
+      set({
+        user: null,
         isAuthenticated: false,
         isOnboarding: true,
       });
@@ -398,10 +430,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // UI actions
-  setOnboarding: (value: boolean) => {
-    set({ isOnboarding: value });
-  },
-
   setLoading: (value: boolean) => {
     set({ isLoading: value });
   },

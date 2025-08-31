@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
@@ -12,6 +12,7 @@ import SplashScreen from '../src/screens/SplashScreen';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -26,7 +27,26 @@ export default function RootLayout() {
     };
 
     initializeApp();
-  }, []);
+  }, [checkAuth]);
+
+  // Handle navigation after initialization
+  useEffect(() => {
+    if (isInitialized && loaded) {
+      // Add a small delay to ensure smooth transition
+      setTimeout(() => {
+        if (isAuthenticated) {
+          // User is authenticated, go to main app
+          router.replace('/(tabs)');
+        } else if (isOnboarding) {
+          // User needs onboarding
+          router.replace('/onboarding');
+        } else {
+          // User needs to login
+          router.replace('/auth/login');
+        }
+      }, 1500); // Show splash for 1.5 seconds
+    }
+  }, [isInitialized, loaded, isAuthenticated, isOnboarding, router]);
 
   if (!loaded || !isInitialized) {
     return <SplashScreen />;
