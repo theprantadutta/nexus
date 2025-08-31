@@ -418,6 +418,226 @@ class DatabaseService {
       };
     }
   }
+
+  // Register for meetup
+  async registerForMeetup(userId: string, meetupId: string): Promise<ApiResponse<null>> {
+    try {
+      // Check if already registered
+      const existingQuery = query(
+        collection(db, collections.attendances),
+        where('userId', '==', userId),
+        where('meetupId', '==', meetupId)
+      );
+
+      const existingSnapshot = await getDocs(existingQuery);
+
+      if (!existingSnapshot.empty) {
+        return {
+          success: false,
+          error: 'Already registered for this meetup',
+        };
+      }
+
+      // Create attendance record
+      await addDoc(collection(db, collections.attendances), {
+        userId,
+        meetupId,
+        status: 'registered',
+        registeredAt: new Date().toISOString(),
+      });
+
+      // Update meetup attendee count
+      const meetupRef = doc(db, collections.meetups, meetupId);
+      await updateDoc(meetupRef, {
+        currentAttendees: increment(1),
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('Register for meetup error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to register for meetup',
+      };
+    }
+  }
+
+  // Unregister from meetup
+  async unregisterFromMeetup(userId: string, meetupId: string): Promise<ApiResponse<null>> {
+    try {
+      // Find the attendance record
+      const q = query(
+        collection(db, collections.attendances),
+        where('userId', '==', userId),
+        where('meetupId', '==', meetupId)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return {
+          success: false,
+          error: 'Not registered for this meetup',
+        };
+      }
+
+      // Delete the attendance record
+      const attendanceDoc = querySnapshot.docs[0];
+      await deleteDoc(attendanceDoc.ref);
+
+      // Update meetup attendee count
+      const meetupRef = doc(db, collections.meetups, meetupId);
+      await updateDoc(meetupRef, {
+        currentAttendees: increment(-1),
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('Unregister from meetup error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to unregister from meetup',
+      };
+    }
+  }
+
+  // Get meetup attendees
+  async getMeetupAttendees(meetupId: string): Promise<ApiResponse<User[]>> {
+    try {
+      // Get attendances for this meetup
+      const attendanceQuery = query(
+        collection(db, collections.attendances),
+        where('meetupId', '==', meetupId),
+        where('status', '==', 'registered')
+      );
+
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+      const userIds = attendanceSnapshot.docs.map(doc => doc.data().userId);
+
+      if (userIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+        };
+      }
+
+      // Get user details for each attendee
+      const users: User[] = [];
+      for (const userId of userIds) {
+        const userDoc = await getDoc(doc(db, collections.users, userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          users.push({
+            $id: userId,
+            name: userData.name,
+            email: userData.email,
+            avatar: userData.avatar,
+            bio: userData.bio,
+            interests: userData.interests,
+            joinedAt: userData.joinedAt,
+            location: userData.location,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: users,
+      };
+    } catch (error: any) {
+      console.error('Get meetup attendees error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch meetup attendees',
+      };
+    }
+  }
+
+  // Check if user is registered for meetup
+  async checkMeetupRegistration(userId: string, meetupId: string): Promise<ApiResponse<boolean>> {
+    try {
+      const q = query(
+        collection(db, collections.attendances),
+        where('userId', '==', userId),
+        where('meetupId', '==', meetupId),
+        where('status', '==', 'registered')
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      return {
+        success: true,
+        data: !querySnapshot.empty,
+      };
+    } catch (error: any) {
+      console.error('Check meetup registration error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to check registration',
+      };
+    }
+  }
+
+  // Get user's registered meetups
+  async getUserMeetups(userId: string): Promise<ApiResponse<Meetup[]>> {
+    try {
+      // Get user's attendances
+      const attendanceQuery = query(
+        collection(db, collections.attendances),
+        where('userId', '==', userId),
+        where('status', '==', 'registered')
+      );
+
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+      const meetupIds = attendanceSnapshot.docs.map(doc => doc.data().meetupId);
+
+      if (meetupIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+        };
+      }
+
+      // Get meetup details
+      const meetups: Meetup[] = [];
+      for (const meetupId of meetupIds) {
+        const meetupDoc = await getDoc(doc(db, collections.meetups, meetupId));
+        if (meetupDoc.exists()) {
+          const meetupData = meetupDoc.data();
+          meetups.push({
+            $id: meetupId,
+            circleId: meetupData.circleId,
+            title: meetupData.title,
+            description: meetupData.description,
+            date: meetupData.date,
+            location: meetupData.location,
+            maxAttendees: meetupData.maxAttendees,
+            currentAttendees: meetupData.currentAttendees,
+            images: meetupData.images,
+            createdBy: meetupData.createdBy,
+            createdAt: meetupData.createdAt,
+            isOnline: meetupData.isOnline,
+            price: meetupData.price,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: meetups,
+      };
+    } catch (error: any) {
+      console.error('Get user meetups error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch user meetups',
+      };
+    }
+  }
 }
 
 export const databaseService = new DatabaseService();

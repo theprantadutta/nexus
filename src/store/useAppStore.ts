@@ -36,6 +36,11 @@ interface AppState {
   leaveCircle: (circleId: string) => Promise<boolean>;
   getCircleMembers: (circleId: string) => Promise<User[]>;
   checkMembership: (circleId: string) => Promise<boolean>;
+  registerForMeetup: (meetupId: string) => Promise<boolean>;
+  unregisterFromMeetup: (meetupId: string) => Promise<boolean>;
+  getMeetupAttendees: (meetupId: string) => Promise<User[]>;
+  checkMeetupRegistration: (meetupId: string) => Promise<boolean>;
+  getUserMeetups: () => Promise<Meetup[]>;
   
   // UI actions
   setOnboarding: (value: boolean) => void;
@@ -308,6 +313,87 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('Check membership error:', error);
       return false;
+    }
+  },
+
+  registerForMeetup: async (meetupId: string) => {
+    const { user } = get();
+    if (!user) return false;
+
+    try {
+      const result = await databaseService.registerForMeetup(user.$id, meetupId);
+      if (result.success) {
+        // Reload meetups to update counts
+        await get().loadMeetups();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Register for meetup error:', error);
+      return false;
+    }
+  },
+
+  unregisterFromMeetup: async (meetupId: string) => {
+    const { user } = get();
+    if (!user) return false;
+
+    try {
+      const result = await databaseService.unregisterFromMeetup(user.$id, meetupId);
+      if (result.success) {
+        // Reload meetups to update counts
+        await get().loadMeetups();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Unregister from meetup error:', error);
+      return false;
+    }
+  },
+
+  getMeetupAttendees: async (meetupId: string) => {
+    try {
+      const result = await databaseService.getMeetupAttendees(meetupId);
+      if (result.success && result.data) {
+        return result.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Get meetup attendees error:', error);
+      return [];
+    }
+  },
+
+  checkMeetupRegistration: async (meetupId: string) => {
+    const { user } = get();
+    if (!user) return false;
+
+    try {
+      const result = await databaseService.checkMeetupRegistration(user.$id, meetupId);
+      if (result.success && result.data) {
+        return result.data;
+      }
+      return false;
+    } catch (error) {
+      console.error('Check meetup registration error:', error);
+      return false;
+    }
+  },
+
+  getUserMeetups: async () => {
+    const { user } = get();
+    if (!user) return [];
+
+    try {
+      const result = await databaseService.getUserMeetups(user.$id);
+      if (result.success && result.data) {
+        return result.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Get user meetups error:', error);
+      return [];
     }
   },
 
