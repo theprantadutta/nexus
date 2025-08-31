@@ -22,8 +22,8 @@ npm install nativewind tailwindcss
 # State Management
 npm install zustand
 
-# Backend (Appwrite)
-npm install appwrite
+# Backend (Firebase)
+npm install firebase
 
 # Forms & Validation
 npm install react-hook-form yup
@@ -46,21 +46,23 @@ src/
 │   └── forms/
 ├── navigation/
 ├── services/
-│   └── appwrite/
+│   └── firebase/
 ├── store/
 ├── utils/
 └── types/
 ```
 
-### 1.4 Appwrite Backend Setup
-- Create Appwrite project
-- Set up databases with collections:
-  - **users**: userId, name, avatar, bio, interests[], joinedAt
-  - **circles**: circleId, name, description, bannerImage, category, memberCount, createdBy, location
-  - **meetups**: meetupId, circleId, title, description, date, location, maxAttendees, images[]
+### 1.4 Firebase Backend Setup
+- Create Firebase project
+- Set up Firestore database with collections:
+  - **users**: name, email, avatar, bio, interests[], joinedAt
+  - **circles**: name, description, bannerImage, category, memberCount, createdBy, location, createdAt
+  - **meetups**: circleId, title, description, date, location, maxAttendees, images[], createdBy, createdAt
   - **memberships**: userId, circleId, role, joinedAt
   - **attendances**: userId, meetupId, status, registeredAt
-  - **messages**: messageId, circleId/meetupId, userId, content, timestamp
+  - **messages**: circleId/meetupId, userId, content, timestamp
+- Configure Firebase Authentication
+- Set up Firebase Storage for images
 
 ---
 

@@ -24,8 +24,8 @@ Nexus is a visually stunning app designed to help people discover and build loca
 *   **Frontend:** Expo (React Native) + TypeScript
 *   **Styling:** **StyleSheet** + **React Native Reanimated** for complex, performant animations. (This is a chance to master the fundamentals and create buttery-smooth custom UI).
 *   **State Management:** Zustand (simpler than Redux, great for this scale)
-*   **Backend & Real-time:** **Appwrite** or **Supabase**.
-    *   **Why?** They provide a fantastic all-in-one solution (Auth, Databases, Storage, Realtime) and are perfect for indie developers. Let's use **Appwrite** for this example to mix it up from Firebase/Supabase.
+*   **Backend & Real-time:** **Firebase**.
+    *   **Why?** Firebase provides a comprehensive solution with Authentication, Firestore database, Storage, and real-time capabilities. It's well-integrated with React Native and perfect for rapid development.
 *   **Maps:** React Native Maps
 *   **Notifications:** Expo Notifications
 
