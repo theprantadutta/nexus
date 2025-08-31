@@ -33,6 +33,9 @@ interface AppState {
   createCircle: (circleData: any) => Promise<boolean>;
   createMeetup: (meetupData: any) => Promise<boolean>;
   setSelectedCircle: (circle: Circle | null) => void;
+  leaveCircle: (circleId: string) => Promise<boolean>;
+  getCircleMembers: (circleId: string) => Promise<User[]>;
+  checkMembership: (circleId: string) => Promise<boolean>;
   
   // UI actions
   setOnboarding: (value: boolean) => void;
@@ -258,6 +261,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSelectedCircle: (circle: Circle | null) => {
     set({ selectedCircle: circle });
+  },
+
+  leaveCircle: async (circleId: string) => {
+    const { user } = get();
+    if (!user) return false;
+
+    try {
+      const result = await databaseService.leaveMembership(user.$id, circleId);
+      if (result.success) {
+        // Reload memberships and circles
+        await get().loadUserMemberships();
+        await get().loadCircles();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Leave circle error:', error);
+      return false;
+    }
+  },
+
+  getCircleMembers: async (circleId: string) => {
+    try {
+      const result = await databaseService.getCircleMembers(circleId);
+      if (result.success && result.data) {
+        return result.data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Get circle members error:', error);
+      return [];
+    }
+  },
+
+  checkMembership: async (circleId: string) => {
+    const { user } = get();
+    if (!user) return false;
+
+    try {
+      const result = await databaseService.checkMembership(user.$id, circleId);
+      if (result.success && result.data) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Check membership error:', error);
+      return false;
+    }
   },
 
   // UI actions

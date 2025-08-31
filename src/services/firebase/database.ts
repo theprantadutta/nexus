@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -13,7 +14,7 @@ import {
   increment
 } from 'firebase/firestore';
 import { db, collections } from './config';
-import { Circle, Meetup, Membership, ApiResponse, CreateCircleForm, CreateMeetupForm } from '../../types';
+import { Circle, Meetup, Membership, User, ApiResponse, CreateCircleForm, CreateMeetupForm } from '../../types';
 
 class DatabaseService {
   // Circle operations
@@ -282,6 +283,138 @@ class DatabaseService {
       return {
         success: false,
         error: error.message || 'Failed to fetch memberships',
+      };
+    }
+  }
+
+  // Leave circle
+  async leaveMembership(userId: string, circleId: string): Promise<ApiResponse<null>> {
+    try {
+      // Find the membership document
+      const q = query(
+        collection(db, collections.memberships),
+        where('userId', '==', userId),
+        where('circleId', '==', circleId)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return {
+          success: false,
+          error: 'Membership not found',
+        };
+      }
+
+      // Delete the membership
+      const membershipDoc = querySnapshot.docs[0];
+      await deleteDoc(membershipDoc.ref);
+
+      // Update circle member count
+      const circleRef = doc(db, collections.circles, circleId);
+      await updateDoc(circleRef, {
+        memberCount: increment(-1),
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('Leave membership error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to leave circle',
+      };
+    }
+  }
+
+  // Get circle members
+  async getCircleMembers(circleId: string): Promise<ApiResponse<User[]>> {
+    try {
+      // Get memberships for this circle
+      const membershipQuery = query(
+        collection(db, collections.memberships),
+        where('circleId', '==', circleId)
+      );
+
+      const membershipSnapshot = await getDocs(membershipQuery);
+      const userIds = membershipSnapshot.docs.map(doc => doc.data().userId);
+
+      if (userIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+        };
+      }
+
+      // Get user details for each member
+      const users: User[] = [];
+      for (const userId of userIds) {
+        const userDoc = await getDoc(doc(db, collections.users, userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          users.push({
+            $id: userId,
+            name: userData.name,
+            email: userData.email,
+            avatar: userData.avatar,
+            bio: userData.bio,
+            interests: userData.interests,
+            joinedAt: userData.joinedAt,
+            location: userData.location,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: users,
+      };
+    } catch (error: any) {
+      console.error('Get circle members error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch circle members',
+      };
+    }
+  }
+
+  // Check if user is member of circle
+  async checkMembership(userId: string, circleId: string): Promise<ApiResponse<Membership | null>> {
+    try {
+      const q = query(
+        collection(db, collections.memberships),
+        where('userId', '==', userId),
+        where('circleId', '==', circleId)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return {
+          success: true,
+          data: null,
+        };
+      }
+
+      const membershipDoc = querySnapshot.docs[0];
+      const membershipData = membershipDoc.data();
+
+      return {
+        success: true,
+        data: {
+          $id: membershipDoc.id,
+          userId: membershipData.userId,
+          circleId: membershipData.circleId,
+          role: membershipData.role,
+          joinedAt: membershipData.joinedAt,
+        },
+      };
+    } catch (error: any) {
+      console.error('Check membership error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to check membership',
       };
     }
   }

@@ -141,6 +141,7 @@ export interface CreateCircleForm {
   description: string;
   category: string;
   bannerImage?: string;
+  themeColor?: string;
   privacy: 'public' | 'private';
   location: {
     city: string;
