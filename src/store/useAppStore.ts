@@ -1,15 +1,16 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Circle, Meetup, Membership } from '../types';
 import { authService } from '../services/firebase/auth';
 import { databaseService } from '../services/firebase/database';
 
-// Helper functions for onboarding status
+// Helper functions for onboarding status using real AsyncStorage
 const ONBOARDING_KEY = '@nexus_onboarding_completed';
 
 const checkOnboardingStatus = async (): Promise<boolean> => {
   try {
-    // Simple in-memory check for demo
-    return (global as any).__NEXUS_ONBOARDING_COMPLETED__ || false;
+    const value = await AsyncStorage.getItem(ONBOARDING_KEY);
+    return value === 'true';
   } catch (error) {
     console.error('Error checking onboarding status:', error);
     return false;
@@ -18,8 +19,7 @@ const checkOnboardingStatus = async (): Promise<boolean> => {
 
 const storeOnboardingStatus = async (completed: boolean): Promise<void> => {
   try {
-    // Simple in-memory storage for demo
-    (global as any).__NEXUS_ONBOARDING_COMPLETED__ = completed;
+    await AsyncStorage.setItem(ONBOARDING_KEY, completed.toString());
   } catch (error) {
     console.error('Error storing onboarding status:', error);
   }
