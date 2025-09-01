@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, interpolate } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useAppStore } from '../../store/useAppStore';
+import { useTokens } from '@/constants/theme/tokens';
+import GradientButton from '@/components/common/GradientButton';
+import Chip from '@/components/common/Chip';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,6 +45,7 @@ const OnboardingScreen = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useSharedValue(0);
   const { setOnboarding } = useAppStore();
+  const tokens = useTokens();
 
   const handleScroll = (event: any) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
@@ -76,50 +80,27 @@ const OnboardingScreen = () => {
   };
 
   const renderOnboardingPage = (item: typeof ONBOARDING_DATA[0], index: number) => {
-
     return (
       <View key={item.id} style={[{ width: SCREEN_WIDTH }, styles.pageContainer]}>
         <View style={styles.contentContainer}>
           <Text style={styles.icon}>{item.icon}</Text>
-          <Text style={styles.title}>
-            {item.title}
-          </Text>
-          <Text style={styles.subtitle}>
-            {item.subtitle}
-          </Text>
-          <Text style={styles.description}>
-            {item.description}
-          </Text>
+          <Text style={[styles.title, { color: tokens.colors.text }]}>{item.title}</Text>
+          <Text style={[styles.subtitle, { color: tokens.colors.primary }]}>{item.subtitle}</Text>
+          <Text style={[styles.description, { color: tokens.colors.textMuted }]}>{item.description}</Text>
 
           {/* Interest Selection for last page */}
           {index === 2 && (
             <View style={styles.interestContainer}>
-              <Text style={styles.interestTitle}>
-                Select at least 3 interests:
-              </Text>
+              <Text style={[styles.interestTitle, { color: tokens.colors.text }]}>Select at least 3 interests:</Text>
               <View style={styles.interestGrid}>
                 {INTERESTS.map((interest) => (
-                  <TouchableOpacity
+                  <Chip
                     key={interest}
+                    label={interest}
+                    selected={selectedInterests.includes(interest)}
                     onPress={() => toggleInterest(interest)}
-                    style={[
-                      styles.interestChip,
-                      selectedInterests.includes(interest)
-                        ? styles.interestChipSelected
-                        : styles.interestChipDefault
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.interestChipText,
-                        selectedInterests.includes(interest)
-                          ? styles.interestChipTextSelected
-                          : styles.interestChipTextDefault
-                      ]}
-                    >
-                      {interest}
-                    </Text>
-                  </TouchableOpacity>
+                    style={{}}
+                  />
                 ))}
               </View>
             </View>
@@ -133,11 +114,14 @@ const OnboardingScreen = () => {
     return (
       <View style={styles.paginationContainer}>
         {ONBOARDING_DATA.map((_, index) => (
-          <View
+          <Animated.View
             key={index}
             style={[
               styles.paginationDot,
-              currentIndex === index ? styles.paginationDotActive : styles.paginationDotInactive
+              {
+                width: currentIndex === index ? 24 : 8,
+                backgroundColor: currentIndex === index ? tokens.colors.primary : '#D1D5DB',
+              },
             ]}
           />
         ))}
@@ -165,27 +149,17 @@ const OnboardingScreen = () => {
         {renderPaginationDots()}
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            onPress={() => router.replace('/auth/login')}
-            style={styles.skipButton}
-          >
+          <TouchableOpacity onPress={() => router.replace('/auth/login')} style={styles.skipButton}>
             <Text style={styles.skipButtonText}>Skip</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <GradientButton
+            title={currentIndex === ONBOARDING_DATA.length - 1 ? 'Get Started' : 'Next'}
             onPress={goToNext}
             disabled={currentIndex === 2 && selectedInterests.length < 3}
-            style={[
-              styles.nextButton,
-              currentIndex === 2 && selectedInterests.length < 3
-                ? styles.nextButtonDisabled
-                : styles.nextButtonEnabled
-            ]}
-          >
-            <Text style={styles.nextButtonText}>
-              {currentIndex === ONBOARDING_DATA.length - 1 ? 'Get Started' : 'Next'}
-            </Text>
-          </TouchableOpacity>
+            style={{ borderRadius: 24, paddingHorizontal: 8 }}
+            textStyle={{ fontWeight: '700' }}
+          />
         </View>
       </View>
     </View>

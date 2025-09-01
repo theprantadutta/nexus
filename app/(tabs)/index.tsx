@@ -10,9 +10,11 @@ import {
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
+import { useTokens } from '@/constants/theme/tokens';
 import { useAppStore } from '../../src/store/useAppStore';
 import CircleCard from '../../src/components/cards/CircleCard';
 import MeetupCard from '../../src/components/cards/MeetupCard';
+import { CircleCardSkeleton, MeetupCardSkeleton } from '../../src/components/common/SkeletonLoader';
 
 export default function HomeScreen() {
   const {
@@ -65,8 +67,10 @@ export default function HomeScreen() {
     />
   );
 
+  const tokens = useTokens();
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.surfaceAlt }]}>
       <StatusBar barStyle="dark-content" backgroundColor="white" />
 
       <ScrollView
@@ -74,9 +78,10 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: tokens.colors.surface }]}>
           <View>
             <Text style={styles.greeting}>Good morning,</Text>
             <Text style={styles.userName}>{user?.name || 'Welcome!'}</Text>
@@ -172,7 +177,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F9FAFB', // TODO: replace with ThemedView and tokens in later pass
   },
   scrollView: {
     flex: 1,

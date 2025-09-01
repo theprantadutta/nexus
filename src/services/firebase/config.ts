@@ -1,5 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// import { getAuth } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -35,9 +37,10 @@ export const storagePaths = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Auth
-// Note: Firebase Auth automatically handles persistence in React Native
-// The authentication state will persist across app restarts
-export const auth = getAuth(app);
+// export const auth = getAuth(app);
+ export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+});
 
 // Initialize Firebase services
 export const db = getFirestore(app);
