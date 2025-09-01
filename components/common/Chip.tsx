@@ -24,7 +24,9 @@ export default function Chip({ label, selected, onPress, style, textStyle }: Chi
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={[styles.base, { borderColor: selected ? tokens.colors.primary : tokens.colors.border }, style]}
+      accessibilityState={{ selected }}
+      accessibilityHint={selected ? 'Selected. Tap to deselect' : 'Tap to select'}
+      style={[styles.base, { borderColor: selected ? tokens.colors.primary : tokens.colors.border, minHeight: 44 }, style]}
     >
       <Animated.View style={[styles.inner, animatedStyle, selected && { backgroundColor: tokens.colors.surfaceAlt }]}> 
         <Text style={[styles.text, { color: tokens.colors.text }, textStyle]}>{label}</Text>

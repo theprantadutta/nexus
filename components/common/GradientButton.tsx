@@ -26,9 +26,11 @@ export default function GradientButton({ title, onPress, disabled, style, textSt
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={title}
+      accessibilityState={{ disabled }}
+      accessibilityHint={disabled ? 'Button is disabled' : 'Tap to activate'}
       style={({ pressed }) => [
         styles.base,
-        { opacity: disabled ? 0.6 : 1 },
+        { opacity: disabled ? 0.6 : 1, minHeight: 44, minWidth: 44 },
         pressed && { opacity: 0.95 },
         style,
       ]}

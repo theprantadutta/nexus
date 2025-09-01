@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   SafeAreaView,
   StatusBar,
@@ -11,8 +10,17 @@ import {
   FlatList,
   Image,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  useAnimatedGestureHandler,
+} from 'react-native-reanimated';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 import { useAppStore } from '../../src/store/useAppStore';
 import { getImageUri, formatTime } from '../../src/utils';
+import { ChatItemSkeleton } from '../../src/components/common/SkeletonLoader';
 
 interface Chat {
   $id: string;
@@ -34,8 +42,23 @@ export default function ChatsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [chats, setChats] = useState<Chat[]>([]);
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useAppStore();
+
+  const filterChats = useCallback(() => {
+    if (!searchQuery.trim()) {
+      setFilteredChats(chats);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = chats.filter(chat =>
+      chat.name.toLowerCase().includes(query) ||
+      chat.lastMessage.text.toLowerCase().includes(query)
+    );
+    setFilteredChats(filtered);
+  }, [searchQuery, chats]);
 
   useEffect(() => {
     loadChats();
@@ -43,9 +66,13 @@ export default function ChatsScreen() {
 
   useEffect(() => {
     filterChats();
-  }, [searchQuery, chats]);
+  }, [filterChats]);
 
-  const loadChats = () => {
+  const loadChats = async () => {
+    setIsLoading(true);
+    // Simulate loading delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Mock chat data - in real app, this would come from Firebase
     const mockChats: Chat[] = [
       {
@@ -93,20 +120,7 @@ export default function ChatsScreen() {
       },
     ];
     setChats(mockChats);
-  };
-
-  const filterChats = () => {
-    if (!searchQuery.trim()) {
-      setFilteredChats(chats);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = chats.filter(chat =>
-      chat.name.toLowerCase().includes(query) ||
-      chat.lastMessage.text.toLowerCase().includes(query)
-    );
-    setFilteredChats(filtered);
+    setIsLoading(false);
   };
 
   const handleChatPress = (chatId: string) => {
@@ -114,57 +128,111 @@ export default function ChatsScreen() {
     // TODO: Navigate to chat room screen
   };
 
-  const renderChatItem = ({ item }: { item: Chat }) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => handleChatPress(item.$id)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatarContainer}>
-        <Image
-          source={{ uri: getImageUri(item.avatar) }}
-          style={styles.avatar}
-          resizeMode="cover"
-        />
-        {item.type === 'direct' && item.isOnline && (
-          <View style={styles.onlineIndicator} />
-        )}
-        {item.type === 'group' && (
-          <View style={styles.groupIndicator}>
-            <Text style={styles.groupIndicatorText}>
-              {item.participants.length}
-            </Text>
-          </View>
-        )}
-      </View>
+  const AnimatedChatItem = ({ item, index }: { item: Chat; index: number }) => {
+    const translateX = useSharedValue(0);
+    const scale = useSharedValue(1);
+    const opacity = useSharedValue(0);
 
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.chatName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={styles.timestamp}>
-            {formatTime(item.lastMessage.timestamp)}
-          </Text>
-        </View>
+    useEffect(() => {
+      opacity.value = withTiming(1, { duration: 300 });
+      scale.value = withTiming(1, { duration: 300 });
+    }, [index, opacity, scale]);
 
-        <View style={styles.messagePreview}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.type === 'group' && item.lastMessage.senderId !== user?.$id
-              ? `${item.lastMessage.senderName}: ${item.lastMessage.text}`
-              : item.lastMessage.text
-            }
-          </Text>
-          {item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadCount}>
-                {item.unreadCount > 99 ? '99+' : item.unreadCount}
-              </Text>
+    const gestureHandler = useAnimatedGestureHandler({
+      onStart: () => {
+        scale.value = withSpring(0.98);
+      },
+      onActive: (event) => {
+        translateX.value = event.translationX;
+      },
+      onEnd: (event) => {
+        scale.value = withSpring(1);
+        if (Math.abs(event.translationX) > 100) {
+          // Swipe action threshold
+          translateX.value = withSpring(event.translationX > 0 ? 300 : -300);
+          opacity.value = withTiming(0, { duration: 200 });
+        } else {
+          translateX.value = withSpring(0);
+        }
+      },
+    });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [
+        { translateX: translateX.value },
+        { scale: scale.value }
+      ],
+      opacity: opacity.value,
+    }));
+
+    return (
+      <PanGestureHandler onGestureEvent={gestureHandler}>
+        <Animated.View style={animatedStyle}>
+          <TouchableOpacity
+            style={styles.chatItem}
+            onPress={() => handleChatPress(item.$id)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{ uri: getImageUri(item.avatar) }}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
+              {item.type === 'direct' && item.isOnline && (
+                <View style={styles.onlineIndicator} />
+              )}
+              {item.type === 'group' && (
+                <View style={styles.groupIndicator}>
+                  <Text style={styles.groupIndicatorText}>
+                    {item.participants.length}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+
+            <View style={styles.chatContent}>
+              <View style={styles.chatHeader}>
+                <Text style={styles.chatName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.timestamp}>
+                  {formatTime(item.lastMessage.timestamp)}
+                </Text>
+              </View>
+
+              <View style={styles.messagePreview}>
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                  {item.type === 'group' && item.lastMessage.senderId !== user?.$id
+                    ? `${item.lastMessage.senderName}: ${item.lastMessage.text}`
+                    : item.lastMessage.text
+                  }
+                </Text>
+                {item.unreadCount > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadCount}>
+                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </PanGestureHandler>
+    );
+  };
+
+  const renderChatItem = ({ item, index }: { item: Chat; index: number }) => (
+    <AnimatedChatItem item={item} index={index} />
+  );
+
+  const renderSkeletonList = () => (
+    <View style={styles.chatList}>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <ChatItemSkeleton key={i} />
+      ))}
+    </View>
   );
 
   const renderEmptyState = () => (
@@ -204,14 +272,18 @@ export default function ChatsScreen() {
       </View>
 
       {/* Chat List */}
-      <FlatList
-        data={filteredChats}
-        renderItem={renderChatItem}
-        keyExtractor={(item) => item.$id}
-        style={styles.chatList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmptyState}
-      />
+      {isLoading ? (
+        renderSkeletonList()
+      ) : (
+        <FlatList
+          data={filteredChats}
+          renderItem={({ item, index }) => renderChatItem({ item, index })}
+          keyExtractor={(item) => item.$id}
+          style={styles.chatList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmptyState}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -6,12 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
-  Dimensions,
   Modal,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTokens } from '@/constants/theme/tokens';
+import GradientButton from '@/components/common/GradientButton';
 
 interface FilterOptions {
   distance: number;
@@ -97,6 +97,8 @@ const SearchFiltersModal: React.FC<SearchFiltersModalProps> = ({
     return count;
   };
 
+  const tokens = useTokens();
+
   return (
     <Modal
       visible={isVisible}
@@ -104,9 +106,9 @@ const SearchFiltersModal: React.FC<SearchFiltersModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: tokens.colors.surface }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <LinearGradient colors={tokens.gradients.brandPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeIcon}>✕</Text>
           </TouchableOpacity>
@@ -114,7 +116,7 @@ const SearchFiltersModal: React.FC<SearchFiltersModalProps> = ({
           <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
             <Text style={styles.resetText}>Reset</Text>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Distance */}
@@ -253,9 +255,9 @@ const SearchFiltersModal: React.FC<SearchFiltersModalProps> = ({
               {getActiveFiltersCount()} filter{getActiveFiltersCount() !== 1 ? 's' : ''} applied
             </Text>
           </View>
-          <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-            <Text style={styles.applyButtonText}>Apply Filters</Text>
-          </TouchableOpacity>
+          <View style={styles.applyButton}>
+            <GradientButton title="Apply Filters" onPress={handleApply} />
+          </View>
         </View>
       </View>
     </Modal>
@@ -429,10 +431,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   applyButton: {
-    backgroundColor: '#4361EE',
-    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   applyButtonText: {
     fontSize: 16,

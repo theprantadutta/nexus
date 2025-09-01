@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,17 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  LayoutChangeEvent,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { useTokens } from '@/constants/theme/tokens';
 import { useAppStore } from '../../src/store/useAppStore';
 import { Circle, Meetup } from '../../src/types';
 import CircleCard from '../../src/components/cards/CircleCard';
 import MeetupCard from '../../src/components/cards/MeetupCard';
 import SearchFiltersModal from '../../src/components/modals/SearchFiltersModal';
 import DiscoverMapView from '../../src/components/maps/DiscoverMapView';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { CircleCardSkeleton, MeetupCardSkeleton } from '../../src/components/common/SkeletonLoader';
 
 const CATEGORIES = [
   'All',
@@ -227,9 +229,17 @@ export default function DiscoverScreen() {
   const renderListView = () => (
     <ScrollView style={styles.listView} showsVerticalScrollIndicator={false}>
       {/* Trending Circles */}
-      {filteredCircles.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trending Circles</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Trending Circles</Text>
+        {isLoading ? (
+          <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <View key={i} style={{ marginRight: 16 }}>
+                <CircleCardSkeleton />
+              </View>
+            ))}
+          </View>
+        ) : filteredCircles.length > 0 ? (
           <FlatList
             data={filteredCircles.slice(0, 5)}
             renderItem={({ item }) => (
@@ -243,15 +253,19 @@ export default function DiscoverScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
           />
-        </View>
-      )}
+        ) : null}
+      </View>
 
       {/* This Weekend */}
-      {filteredMeetups.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Weekend</Text>
-          <View style={styles.meetupsList}>
-            {filteredMeetups.slice(0, 3).map((meetup) => (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>This Weekend</Text>
+        <View style={styles.meetupsList}>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <MeetupCardSkeleton key={i} />
+            ))
+          ) : filteredMeetups.length > 0 ? (
+            filteredMeetups.slice(0, 3).map((meetup) => (
               <MeetupCard
                 key={meetup.$id}
                 meetup={meetup}
@@ -259,10 +273,10 @@ export default function DiscoverScreen() {
                 onJoin={() => handleJoinMeetup(meetup.$id)}
                 isJoined={false}
               />
-            ))}
-          </View>
+            ))
+          ) : null}
         </View>
-      )}
+      </View>
 
       {/* New in Your Area */}
       {filteredCircles.length > 5 && (

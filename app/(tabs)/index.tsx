@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,93 @@ import {
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+  withTiming,
+  runOnJS
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTokens } from '@/constants/theme/tokens';
 import { useAppStore } from '../../src/store/useAppStore';
 import CircleCard from '../../src/components/cards/CircleCard';
 import MeetupCard from '../../src/components/cards/MeetupCard';
 import { CircleCardSkeleton, MeetupCardSkeleton } from '../../src/components/common/SkeletonLoader';
+
+// Animated Card Components
+const AnimatedCircleCard = ({ circle, onPress, index }: { circle: any; onPress: () => void; index: number }) => {
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const delay = index * 100;
+    scale.value = withDelay(delay, withSpring(1, { damping: 15, stiffness: 150 }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
+  }, [index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[animatedStyle, { marginRight: 16 }]}>
+      <Animated.View style={pressAnimatedStyle}>
+        <TouchableOpacity
+          onPressIn={() => { pressScale.value = withSpring(0.95); }}
+          onPressOut={() => { pressScale.value = withSpring(1); }}
+          onPress={onPress}
+          activeOpacity={1}
+        >
+          <CircleCard circle={circle} onPress={onPress} />
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
+const AnimatedMeetupCard = ({ meetup, onPress, onJoin, isJoined, index }: { meetup: any; onPress: () => void; onJoin: () => void; isJoined: boolean; index: number }) => {
+  const translateY = useSharedValue(50);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const delay = index * 150;
+    translateY.value = withDelay(delay, withSpring(0, { damping: 15, stiffness: 100 }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
+  }, [index]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  return (
+    <Animated.View style={[animatedStyle, { marginBottom: 12 }]}>
+      <Animated.View style={pressAnimatedStyle}>
+        <TouchableOpacity
+          onPressIn={() => { pressScale.value = withSpring(0.98); }}
+          onPressOut={() => { pressScale.value = withSpring(1); }}
+          onPress={onPress}
+          activeOpacity={1}
+        >
+          <MeetupCard meetup={meetup} onPress={onPress} onJoin={onJoin} isJoined={isJoined} />
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+};
 
 export default function HomeScreen() {
   const {
@@ -27,13 +109,17 @@ export default function HomeScreen() {
     isLoading
   } = useAppStore();
 
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     loadCircles();
     loadMeetups();
   }, []);
 
   const handleRefresh = async () => {
+    setRefreshing(true);
     await Promise.all([loadCircles(), loadMeetups()]);
+    setRefreshing(false);
   };
 
   const handleCirclePress = (circleId: string) => {
@@ -51,19 +137,21 @@ export default function HomeScreen() {
     console.log('Join meetup:', meetupId);
   };
 
-  const renderCircleCard = ({ item }: { item: any }) => (
-    <CircleCard
+  const renderCircleCard = ({ item, index }: { item: any; index: number }) => (
+    <AnimatedCircleCard
       circle={item}
       onPress={() => handleCirclePress(item.$id)}
+      index={index}
     />
   );
 
-  const renderMeetupCard = ({ item }: { item: any }) => (
-    <MeetupCard
+  const renderMeetupCard = ({ item, index }: { item: any; index: number }) => (
+    <AnimatedMeetupCard
       meetup={item}
       onPress={() => handleMeetupPress(item.$id)}
       onJoin={() => handleJoinMeetup(item.$id)}
       isJoined={false} // TODO: Check if user is joined
+      index={index}
     />
   );
 
@@ -76,7 +164,12 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={refreshing || isLoading}
+            onRefresh={handleRefresh}
+            tintColor={tokens.colors.primary}
+            colors={[tokens.colors.primary]}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -111,11 +204,20 @@ export default function HomeScreen() {
           ) : (
             <FlatList
               data={circles.slice(0, 5)}
-              renderItem={renderCircleCard}
+              renderItem={({ item, index }) => renderCircleCard({ item, index })}
               keyExtractor={(item) => item.$id}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalList}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={3}
+              windowSize={5}
+              initialNumToRender={3}
+              getItemLayout={(data, index) => ({
+                length: 296, // CircleCard width + margin
+                offset: 296 * index,
+                index,
+              })}
             />
           )}
         </View>
@@ -134,13 +236,14 @@ export default function HomeScreen() {
               ? Array.from({ length: 3 }).map((_, i) => (
                   <MeetupCardSkeleton key={i} />
                 ))
-              : meetups.slice(0, 3).map((meetup) => (
-                  <MeetupCard
+              : meetups.slice(0, 3).map((meetup, index) => (
+                  <AnimatedMeetupCard
                     key={meetup.$id}
                     meetup={meetup}
                     onPress={() => handleMeetupPress(meetup.$id)}
                     onJoin={() => handleJoinMeetup(meetup.$id)}
                     isJoined={false}
+                    index={index}
                   />
                 ))}
           </View>
@@ -157,11 +260,20 @@ export default function HomeScreen() {
 
           <FlatList
             data={circles.slice(5, 10)}
-            renderItem={renderCircleCard}
+            renderItem={({ item, index }) => renderCircleCard({ item, index: index + 5 })}
             keyExtractor={(item) => item.$id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={3}
+            windowSize={5}
+            initialNumToRender={3}
+            getItemLayout={(data, index) => ({
+              length: 296, // CircleCard width + margin
+              offset: 296 * index,
+              index,
+            })}
           />
         </View>
 
