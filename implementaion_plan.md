@@ -1,3 +1,53 @@
+# UI‑First Milestones (2025-09 status)
+
+This section summarizes the current state of the UI‑first effort (animated gradients, cohesive theming, motion, and polish) and what's next. It augments the broader plan below.
+
+## Milestone 1 — Theme tokens + Animated Gradient Tab Bar + Gradient Buttons/Chips
+- Status: COMPLETED
+- Delivered:
+  - Theme tokens (light/dark) with semantic colors, typography, spacing, radius, shadows, and gradient tokens
+  - Animated gradient bottom tab bar with active indicator and center FAB (haptics, safe‑area)
+  - GradientButton (brandPrimary) and Chip with press animation
+  - Began refactor of screens to remove hard‑coded colors (Home sections use tokens)
+- Key files:
+  - constants/theme/tokens.ts
+  - components/navigation/AnimatedGradientTabBar.tsx
+  - components/common/GradientButton.tsx, components/common/Chip.tsx
+  - app/(tabs)/_layout.tsx
+- Dependencies:
+  - expo-linear-gradient (installed)
+
+## Milestone 2 — Motion primitives + Home/Onboarding/Circle Detail polish
+- Status: PARTIALLY COMPLETED (remaining polish in “Next actions”)
+- Delivered:
+  - Onboarding: gradient CTA, animated dots, chip selection using shared Chip
+  - Circle Detail: parallax header with gradient overlay; sticky tabs with animated underline; gradient Join button; tokens applied
+  - Home: skeleton loaders for circles/meetups; tokens for surface/surfaceAlt; groundwork for list reveal/press animations
+- Next actions:
+  - Home: staggered list reveal and press‑scale for cards; gradient pull‑to‑refresh spinner
+  - Wire Skeletons into Discover and Chats while loading
+
+## Milestone 3 — Create flows, Discover + Filters, Chats micro‑interactions
+- Status: PLANNED (not started)
+- Planned work:
+  - Create Circle/Meetup: animated step progress, gradient CTAs, validation micro‑animations, image preview polish
+  - Discover: animated segmented control (list/map), gradient filter header, chips motion, skeletons
+  - Chats: message bubble spring‑in, typing indicator wave, swipe actions with haptics
+
+## Milestone 4 — Accessibility, Performance, QA
+- Status: PLANNED (not started)
+- Planned work:
+  - Accessibility: roles/labels, ≥44×44 touch targets, WCAG contrast, keyboard focus
+  - Performance: image caching, FlatList optimization, memoized worklets, reduced overdraw
+  - Final QA pass across auth → onboarding → tabs → screens
+
+## Conventions and Quality Gates
+- Run `npm run type-check` and `npm run lint` before milestone commits
+- One Conventional Commit per milestone (intermediate commits allowed)
+- Avoid hard‑coded hex values in UI components; consume tokens and gradient tokens
+
+---
+
 # Nexus App - Complete Implementation Guide
 
 ## Phase 1: Foundation & Setup (Week 1) ✅ COMPLETED
@@ -104,7 +154,7 @@ src/
 **Tabs Structure**:
 ```
 - Home (Feed icon)
-- Discover (Compass icon) 
+- Discover (Compass icon)
 - Create (Plus icon - floating action button style)
 - Chats (Message icon with badge)
 - Profile (Avatar)
@@ -445,7 +495,7 @@ OnboardingScreen → AuthStack (Login/Signup)
   ↓
 MainTabNavigator
   ├── HomeStack
-  ├── DiscoverStack  
+  ├── DiscoverStack
   ├── CreateModal
   ├── ChatsStack
   └── ProfileStack
