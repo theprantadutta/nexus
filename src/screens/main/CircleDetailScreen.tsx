@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   Image,
@@ -16,12 +15,16 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolate,
+  withTiming,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTokens } from '@/constants/theme/tokens';
+import GradientButton from '@/components/common/GradientButton';
 import { useAppStore } from '../../store/useAppStore';
 import { Circle, User, Meetup } from '../../types';
 import { getImageUri, formatDate } from '../../utils';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
 
 interface CircleDetailScreenProps {
@@ -38,6 +41,14 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
   
   const { user, joinCircle, loadMeetups, userMemberships } = useAppStore();
   const scrollY = useSharedValue(0);
+  const tokens = useTokens();
+
+  // Animated underline for tabs
+  const tabs: Array<'about' | 'members' | 'meetups'> = ['about', 'members', 'meetups'];
+  const tabIndex = useSharedValue(0);
+  const underlineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tabIndex.value * (SCREEN_WIDTH / tabs.length) }],
+  }));
 
   useEffect(() => {
     // Load circle data
@@ -271,18 +282,20 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
     );
   }
 
+
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      
+
       {/* Header Image */}
       <Animated.View style={[styles.headerImage, imageAnimatedStyle]}>
-        <Image 
-          source={{ uri: getImageUri(circle.bannerImage) }} 
+        <Image
+          source={{ uri: getImageUri(circle.bannerImage) }}
           style={styles.bannerImage}
           resizeMode="cover"
         />
-        <View style={styles.headerOverlay} />
+        <LinearGradient colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.6)"]} style={styles.headerOverlay} />
       </Animated.View>
 
       {/* Navigation Header */}
@@ -309,26 +322,30 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
         scrollEventThrottle={16}
       >
         {/* Header Content */}
-        <View style={styles.headerContent}>
-          <Text style={styles.circleName}>{circle.name}</Text>
-          <Text style={styles.circleLocation}>
+        <View style={[styles.headerContent, { backgroundColor: tokens.colors.surface }]}>
+          <Text style={[styles.circleName, { color: tokens.colors.text }]}>{circle.name}</Text>
+          <Text style={[styles.circleLocation, { color: tokens.colors.textMuted }]}>
             📍 {circle.location.city}, {circle.location.country}
           </Text>
         </View>
 
         {/* Tab Navigation */}
-        <View style={styles.tabNavigation}>
-          {(['about', 'members', 'meetups'] as const).map((tab) => (
+        <View style={[styles.tabNavigation, { backgroundColor: tokens.colors.surface, borderBottomColor: tokens.colors.border }]}>
+          {tabs.map((tab, i) => (
             <TouchableOpacity
               key={tab}
-              style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
-              onPress={() => setActiveTab(tab)}
+              style={styles.tabButton}
+              onPress={() => {
+                setActiveTab(tab);
+                tabIndex.value = i;
+              }}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+              <Text style={[styles.tabText, { color: activeTab === tab ? tokens.colors.primary : tokens.colors.textMuted }]}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
+          <Animated.View style={[styles.tabUnderline, { backgroundColor: tokens.colors.primary }, underlineStyle]} />
         </View>
 
         {/* Tab Content */}
@@ -337,10 +354,8 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
 
       {/* Join Button */}
       {!isJoined && (
-        <View style={styles.joinButtonContainer}>
-          <TouchableOpacity style={styles.joinButton} onPress={handleJoinCircle}>
-            <Text style={styles.joinButtonText}>Join Circle</Text>
-          </TouchableOpacity>
+        <View style={[styles.joinButtonContainer, { backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.border }]}>
+          <GradientButton title="Join Circle" onPress={handleJoinCircle} />
         </View>
       )}
     </View>
@@ -460,28 +475,25 @@ const styles = StyleSheet.create({
   },
   tabNavigation: {
     flexDirection: 'row',
-    backgroundColor: 'white',
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   tabButton: {
     flex: 1,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#4361EE',
-  },
   tabText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
   },
-  activeTabText: {
-    color: '#4361EE',
-    fontWeight: '600',
+  tabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 2,
+    width: SCREEN_WIDTH / 3,
+    backgroundColor: '#4361EE',
   },
   tabContent: {
     backgroundColor: 'white',

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, StatusBar, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, interpolate } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useAppStore } from '../../store/useAppStore';
 import { useTokens } from '@/constants/theme/tokens';
