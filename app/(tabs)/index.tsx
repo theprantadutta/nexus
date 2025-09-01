@@ -100,14 +100,24 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={circles.slice(0, 5)}
-            renderItem={renderCircleCard}
-            keyExtractor={(item) => item.$id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalList}
-          />
+          {isLoading ? (
+            <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <View key={i} style={{ marginRight: 16 }}>
+                  <CircleCardSkeleton />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              data={circles.slice(0, 5)}
+              renderItem={renderCircleCard}
+              keyExtractor={(item) => item.$id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+            />
+          )}
         </View>
 
         {/* Upcoming Meetups Section */}
@@ -120,15 +130,19 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.meetupsList}>
-            {meetups.slice(0, 3).map((meetup) => (
-              <MeetupCard
-                key={meetup.$id}
-                meetup={meetup}
-                onPress={() => handleMeetupPress(meetup.$id)}
-                onJoin={() => handleJoinMeetup(meetup.$id)}
-                isJoined={false}
-              />
-            ))}
+            {isLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <MeetupCardSkeleton key={i} />
+                ))
+              : meetups.slice(0, 3).map((meetup) => (
+                  <MeetupCard
+                    key={meetup.$id}
+                    meetup={meetup}
+                    onPress={() => handleMeetupPress(meetup.$id)}
+                    onJoin={() => handleJoinMeetup(meetup.$id)}
+                    isJoined={false}
+                  />
+                ))}
           </View>
         </View>
 
