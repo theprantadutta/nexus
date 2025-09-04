@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolate,
-  withTiming,
+
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTokens } from '@/constants/theme/tokens';
@@ -39,26 +39,18 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
   const [circleMeetups, setCircleMeetups] = useState<Meetup[]>([]);
   const [isJoined, setIsJoined] = useState(false);
   
-  const { user, joinCircle, loadMeetups, userMemberships } = useAppStore();
+  const { user, joinCircle, userMemberships } = useAppStore();
   const scrollY = useSharedValue(0);
   const tokens = useTokens();
 
   // Animated underline for tabs
-  const tabs: Array<'about' | 'members' | 'meetups'> = ['about', 'members', 'meetups'];
+  const tabs: ('about' | 'members' | 'meetups')[] = ['about', 'members', 'meetups'];
   const tabIndex = useSharedValue(0);
   const underlineStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tabIndex.value * (SCREEN_WIDTH / tabs.length) }],
   }));
 
-  useEffect(() => {
-    // Load circle data
-    loadCircleData();
-    loadMembersData();
-    loadCircleMeetups();
-    checkMembership();
-  }, [circleId]);
-
-  const loadCircleData = async () => {
+  const loadCircleData = useCallback(async () => {
     // TODO: Load circle data from Firebase
     // For now, using mock data
     const mockCircle: Circle = {
@@ -77,9 +69,9 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
       createdAt: '2024-01-15T10:00:00Z',
     };
     setCircle(mockCircle);
-  };
+  }, [circleId]);
 
-  const loadMembersData = async () => {
+  const loadMembersData = useCallback(async () => {
     // TODO: Load members from Firebase
     const mockMembers: User[] = [
       {
@@ -102,9 +94,9 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
       },
     ];
     setMembers(mockMembers);
-  };
+  }, []);
 
-  const loadCircleMeetups = async () => {
+  const loadCircleMeetups = useCallback(async () => {
     // TODO: Load meetups for this circle
     const mockMeetups: Meetup[] = [
       {
@@ -127,12 +119,20 @@ const CircleDetailScreen: React.FC<CircleDetailScreenProps> = ({ circleId, onBac
       },
     ];
     setCircleMeetups(mockMeetups);
-  };
+  }, [circleId]);
 
-  const checkMembership = () => {
+  const checkMembership = useCallback(() => {
     const membership = userMemberships.find(m => m.circleId === circleId);
     setIsJoined(!!membership);
-  };
+  }, [userMemberships, circleId]);
+
+  useEffect(() => {
+    // Load circle data
+    loadCircleData();
+    loadMembersData();
+    loadCircleMeetups();
+    checkMembership();
+  }, [circleId, loadCircleData, loadMembersData, loadCircleMeetups, checkMembership]);
 
   const handleJoinCircle = async () => {
     if (!user) return;

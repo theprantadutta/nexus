@@ -115,7 +115,7 @@ const CreateCircleScreen: React.FC<CreateCircleScreenProps> = ({ onBack, onCompl
       } else {
         Alert.alert('Error', 'Failed to create circle. Please try again.');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);

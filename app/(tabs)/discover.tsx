@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,17 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  Dimensions,
-  LayoutChangeEvent,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { useTokens } from '@/constants/theme/tokens';
 import { useAppStore } from '../../src/store/useAppStore';
-import { Circle, Meetup } from '../../src/types';
+
 import CircleCard from '../../src/components/cards/CircleCard';
 import MeetupCard from '../../src/components/cards/MeetupCard';
 import SearchFiltersModal from '../../src/components/modals/SearchFiltersModal';
 import DiscoverMapView from '../../src/components/maps/DiscoverMapView';
 import { CircleCardSkeleton, MeetupCardSkeleton } from '../../src/components/common/SkeletonLoader';
+import { useDiscovery } from '../../src/hooks/useDiscovery';
+import { SearchFilters } from '../../src/services/search/discoveryService';
+import SearchSuggestions from '../../src/components/search/SearchSuggestions';
 
 const CATEGORIES = [
   'All',
@@ -41,119 +40,104 @@ export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [filteredCircles, setFilteredCircles] = useState<Circle[]>([]);
-  const [filteredMeetups, setFilteredMeetups] = useState<Meetup[]>([]);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
-  const [filters, setFilters] = useState({
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>({
+    categories: [],
     distance: 25,
-    categories: [] as string[],
-    sortBy: 'relevance' as 'relevance' | 'distance' | 'newest' | 'popular',
+    sortBy: 'relevance',
     showOnlineOnly: false,
     showFreeOnly: false,
-    dateRange: 'anytime' as 'anytime' | 'today' | 'this_week' | 'this_month',
+    dateRange: 'anytime',
   });
 
-  const { circles, meetups, loadCircles, loadMeetups, isLoading } = useAppStore();
+  const { loadCircles, loadMeetups, isLoading } = useAppStore();
+  const {
+    isSearching,
+    circleResults,
+    meetupResults,
+    searchHistory,
+    search,
+    getRecommendations,
+    clearResults,
+    trackCircleView,
+    trackMeetupView,
+  } = useDiscovery();
 
+  // Perform search with current filters
+  const performSearch = useCallback(async () => {
+    const searchFilters: SearchFilters = {
+      ...filters,
+      query: searchQuery.trim() || undefined,
+      categories: selectedCategory !== 'All' ? [selectedCategory] : filters.categories,
+    };
+
+    await search(searchFilters);
+  }, [search, filters, searchQuery, selectedCategory]);
+
+  // Get recommendations when no search query
+  const loadRecommendations = useCallback(async () => {
+    if (!searchQuery.trim()) {
+      const recommendationFilters = {
+        ...filters,
+        categories: selectedCategory !== 'All' ? [selectedCategory] : filters.categories,
+      };
+      await getRecommendations(recommendationFilters);
+    }
+  }, [getRecommendations, filters, selectedCategory, searchQuery]);
+
+  // Load initial data and recommendations
   useEffect(() => {
     loadCircles();
     loadMeetups();
-  }, []);
+    loadRecommendations();
+  }, [loadCircles, loadMeetups, loadRecommendations]);
 
+  // Trigger search when filters change
   useEffect(() => {
-    filterContent();
-  }, [searchQuery, selectedCategory, filters, circles, meetups]);
-
-  const filterContent = () => {
-    let filteredC = circles;
-    let filteredM = meetups;
-
-    // Filter by category
-    if (selectedCategory !== 'All') {
-      filteredC = circles.filter(circle => circle.category === selectedCategory);
-      filteredM = meetups.filter(meetup => {
-        const circle = circles.find(c => c.$id === meetup.circleId);
-        return circle?.category === selectedCategory;
-      });
-    }
-
-    // Filter by advanced filters
-    if (filters.categories.length > 0) {
-      filteredC = filteredC.filter(circle => filters.categories.includes(circle.category));
-      filteredM = filteredM.filter(meetup => {
-        const circle = circles.find(c => c.$id === meetup.circleId);
-        return circle && filters.categories.includes(circle.category);
-      });
-    }
-
-    // Filter by online only
-    if (filters.showOnlineOnly) {
-      filteredM = filteredM.filter(meetup => meetup.isOnline);
-    }
-
-    // Filter by free only
-    if (filters.showFreeOnly) {
-      filteredM = filteredM.filter(meetup => !meetup.price || meetup.price === 0);
-    }
-
-    // Filter by date range
-    if (filters.dateRange !== 'anytime') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      filteredM = filteredM.filter(meetup => {
-        const meetupDate = new Date(meetup.date);
-
-        switch (filters.dateRange) {
-          case 'today':
-            return meetupDate >= today && meetupDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
-          case 'this_week':
-            const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-            return meetupDate >= today && meetupDate < weekEnd;
-          case 'this_month':
-            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            return meetupDate >= today && meetupDate <= monthEnd;
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Filter by search query
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filteredC = filteredC.filter(circle =>
-        circle.name.toLowerCase().includes(query) ||
-        circle.description.toLowerCase().includes(query)
-      );
-      filteredM = filteredM.filter(meetup =>
-        meetup.title.toLowerCase().includes(query) ||
-        meetup.description.toLowerCase().includes(query)
-      );
+      performSearch();
+    } else {
+      loadRecommendations();
     }
+  }, [searchQuery, selectedCategory, filters, performSearch, loadRecommendations]);
 
-    // Sort results
-    if (filters.sortBy === 'newest') {
-      filteredC = filteredC.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      filteredM = filteredM.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    } else if (filters.sortBy === 'popular') {
-      filteredC = filteredC.sort((a, b) => b.memberCount - a.memberCount);
-      filteredM = filteredM.sort((a, b) => b.currentAttendees - a.currentAttendees);
-    }
-
-    setFilteredCircles(filteredC);
-    setFilteredMeetups(filteredM);
-  };
-
-  const handleApplyFilters = (newFilters: typeof filters) => {
+  const handleApplyFilters = (newFilters: SearchFilters) => {
     setFilters(newFilters);
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setShowSuggestions(query.length === 0 && searchHistory.length > 0);
+  };
+
+  const handleSearchFocus = () => {
+    setShowSuggestions(searchQuery.length === 0 && searchHistory.length > 0);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding suggestions to allow for suggestion selection
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
+  const handleSuggestionPress = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    setShowSuggestions(false);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setShowSuggestions(false);
+    clearResults();
+  };
+
   const handleCirclePress = (circleId: string) => {
+    trackCircleView(circleId);
     console.log('Navigate to circle:', circleId);
   };
 
   const handleMeetupPress = (meetupId: string) => {
+    trackMeetupView(meetupId);
     console.log('Navigate to meetup:', meetupId);
   };
 
@@ -169,7 +153,9 @@ export default function DiscoverScreen() {
             style={styles.searchInput}
             placeholder="Search circles and events..."
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleSearch}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
             placeholderTextColor="#9CA3AF"
           />
         </View>
@@ -223,6 +209,13 @@ export default function DiscoverScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Search Suggestions */}
+      <SearchSuggestions
+        suggestions={searchHistory}
+        onSuggestionPress={handleSuggestionPress}
+        visible={showSuggestions}
+      />
     </View>
   );
 
@@ -231,7 +224,7 @@ export default function DiscoverScreen() {
       {/* Trending Circles */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Trending Circles</Text>
-        {isLoading ? (
+        {isLoading || isSearching ? (
           <View style={[styles.horizontalList, { flexDirection: 'row' }]}>
             {Array.from({ length: 5 }).map((_, i) => (
               <View key={i} style={{ marginRight: 16 }}>
@@ -239,16 +232,16 @@ export default function DiscoverScreen() {
               </View>
             ))}
           </View>
-        ) : filteredCircles.length > 0 ? (
+        ) : circleResults.length > 0 ? (
           <FlatList
-            data={filteredCircles.slice(0, 5)}
+            data={circleResults.slice(0, 5)}
             renderItem={({ item }) => (
               <CircleCard
-                circle={item}
-                onPress={() => handleCirclePress(item.$id)}
+                circle={item.item}
+                onPress={() => handleCirclePress(item.item.$id)}
               />
             )}
-            keyExtractor={(item) => item.$id}
+            keyExtractor={(item) => item.item.$id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
@@ -260,17 +253,17 @@ export default function DiscoverScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>This Weekend</Text>
         <View style={styles.meetupsList}>
-          {isLoading ? (
+          {isLoading || isSearching ? (
             Array.from({ length: 3 }).map((_, i) => (
               <MeetupCardSkeleton key={i} />
             ))
-          ) : filteredMeetups.length > 0 ? (
-            filteredMeetups.slice(0, 3).map((meetup) => (
+          ) : meetupResults.length > 0 ? (
+            meetupResults.slice(0, 3).map((result) => (
               <MeetupCard
-                key={meetup.$id}
-                meetup={meetup}
-                onPress={() => handleMeetupPress(meetup.$id)}
-                onJoin={() => handleJoinMeetup(meetup.$id)}
+                key={result.item.$id}
+                meetup={result.item}
+                onPress={() => handleMeetupPress(result.item.$id)}
+                onJoin={() => handleJoinMeetup(result.item.$id)}
                 isJoined={false}
               />
             ))
@@ -279,18 +272,18 @@ export default function DiscoverScreen() {
       </View>
 
       {/* New in Your Area */}
-      {filteredCircles.length > 5 && (
+      {circleResults.length > 5 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>New in Your Area</Text>
           <FlatList
-            data={filteredCircles.slice(5, 10)}
+            data={circleResults.slice(5, 10)}
             renderItem={({ item }) => (
               <CircleCard
-                circle={item}
-                onPress={() => handleCirclePress(item.$id)}
+                circle={item.item}
+                onPress={() => handleCirclePress(item.item.$id)}
               />
             )}
-            keyExtractor={(item) => item.$id}
+            keyExtractor={(item) => item.item.$id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
@@ -299,7 +292,7 @@ export default function DiscoverScreen() {
       )}
 
       {/* No Results */}
-      {filteredCircles.length === 0 && filteredMeetups.length === 0 && !isLoading && (
+      {circleResults.length === 0 && meetupResults.length === 0 && !isLoading && !isSearching && (
         <View style={styles.noResults}>
           <Text style={styles.noResultsTitle}>No results found</Text>
           <Text style={styles.noResultsText}>
@@ -312,8 +305,8 @@ export default function DiscoverScreen() {
 
   const renderMapView = () => (
     <DiscoverMapView
-      circles={filteredCircles}
-      meetups={filteredMeetups}
+      circles={circleResults.map(r => r.item)}
+      meetups={meetupResults.map(r => r.item)}
       onCirclePress={handleCirclePress}
       onMeetupPress={handleMeetupPress}
     />

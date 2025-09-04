@@ -10,7 +10,33 @@ export interface User {
   location?: {
     city: string;
     country: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
   };
+  privacy?: {
+    isPrivate: boolean;
+    allowMessages: boolean;
+    showLocation: boolean;
+    showInterests: boolean;
+    showMemberships: boolean;
+  };
+  socialLinks?: {
+    website?: string;
+    twitter?: string;
+    linkedin?: string;
+    instagram?: string;
+  };
+  notifications?: {
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    meetupReminders: boolean;
+    circleUpdates: boolean;
+    messageNotifications: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Circle Types

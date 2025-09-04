@@ -7,8 +7,9 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAppStore } from '../src/store/useAppStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import SplashScreen from '../src/screens/SplashScreen';
+import { useAppStore } from '../src/store/useAppStore';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -17,7 +18,7 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  const { isAuthenticated, isLoading, isOnboarding, checkAuth } = useAppStore();
+  const { isAuthenticated, isOnboarding, checkAuth } = useAppStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -54,15 +55,17 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="splash" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="auth/login" />
-        <Stack.Screen name="auth/signup" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <GestureHandlerRootView>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="splash" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="auth/login" />
+          <Stack.Screen name="auth/signup" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="+not-found" />
+        </Stack>
       <StatusBar style="auto" />
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

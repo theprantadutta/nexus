@@ -50,7 +50,7 @@ const MeetupDetailSheet: React.FC<MeetupDetailSheetProps> = ({
     } else {
       translateY.value = withSpring(SHEET_HEIGHT, { damping: 15, stiffness: 150 });
     }
-  }, [isVisible]);
+  }, [isVisible, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],

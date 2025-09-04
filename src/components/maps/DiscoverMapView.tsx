@@ -4,14 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Alert,
 } from 'react-native';
 import MapView, { Marker, Callout, Region } from 'react-native-maps';
 import { Circle, Meetup } from '../../types';
-import { getImageUri } from '../../utils';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+
 
 interface DiscoverMapViewProps {
   circles: Circle[];
@@ -27,7 +26,8 @@ const DiscoverMapView: React.FC<DiscoverMapViewProps> = ({
   onMeetupPress,
 }) => {
   const mapRef = useRef<MapView>(null);
-  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+
+
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
 
   // Default region (San Francisco Bay Area)
@@ -39,7 +39,6 @@ const DiscoverMapView: React.FC<DiscoverMapViewProps> = ({
   };
 
   const handleMarkerPress = (id: string, type: 'circle' | 'meetup') => {
-    setSelectedMarker(id);
     if (type === 'circle') {
       onCirclePress(id);
     } else {
@@ -133,7 +132,7 @@ const DiscoverMapView: React.FC<DiscoverMapViewProps> = ({
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
-        onPress={() => setSelectedMarker(null)}
+        onPress={() => {}}
       >
         {renderCircleMarkers()}
         {renderMeetupMarkers()}

@@ -10,7 +10,7 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
-import { useAppStore } from '../../store/useAppStore';
+
 import { getImageUri, formatTime } from '../../utils';
 
 interface Notification {
@@ -37,7 +37,7 @@ const NotificationsScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   
-  const { user } = useAppStore();
+
 
   useEffect(() => {
     loadNotifications();

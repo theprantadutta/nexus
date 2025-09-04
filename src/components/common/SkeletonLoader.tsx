@@ -3,10 +3,9 @@ import {
   View,
   StyleSheet,
   Animated,
-  Dimensions,
 } from 'react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 interface SkeletonLoaderProps {
   width?: number | string;
@@ -42,7 +41,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
     animation.start();
 
     return () => animation.stop();
-  }, []);
+  }, [animatedValue]);
 
   const backgroundColor = animatedValue.interpolate({
     inputRange: [0, 1],

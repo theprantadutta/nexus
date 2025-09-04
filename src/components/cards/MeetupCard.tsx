@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Meetup } from '../../types';
-import { formatDate, formatTime, getImageUri } from '../../utils';
+import { formatTime, getImageUri } from '../../utils';
 
 interface MeetupCardProps {
   meetup: Meetup;

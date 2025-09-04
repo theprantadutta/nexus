@@ -15,10 +15,8 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withDelay,
-  withTiming,
-  runOnJS
+  withTiming
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTokens } from '@/constants/theme/tokens';
 import { useAppStore } from '../../src/store/useAppStore';
 import CircleCard from '../../src/components/cards/CircleCard';
@@ -34,7 +32,7 @@ const AnimatedCircleCard = ({ circle, onPress, index }: { circle: any; onPress: 
     const delay = index * 100;
     scale.value = withDelay(delay, withSpring(1, { damping: 15, stiffness: 150 }));
     opacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
-  }, [index]);
+  }, [index, scale, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -70,7 +68,7 @@ const AnimatedMeetupCard = ({ meetup, onPress, onJoin, isJoined, index }: { meet
     const delay = index * 150;
     translateY.value = withDelay(delay, withSpring(0, { damping: 15, stiffness: 100 }));
     opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
-  }, [index]);
+  }, [index, translateY, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -105,7 +103,6 @@ export default function HomeScreen() {
     meetups,
     loadCircles,
     loadMeetups,
-    joinCircle,
     isLoading
   } = useAppStore();
 
@@ -114,7 +111,7 @@ export default function HomeScreen() {
   useEffect(() => {
     loadCircles();
     loadMeetups();
-  }, []);
+  }, [loadCircles, loadMeetups]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -145,15 +142,7 @@ export default function HomeScreen() {
     />
   );
 
-  const renderMeetupCard = ({ item, index }: { item: any; index: number }) => (
-    <AnimatedMeetupCard
-      meetup={item}
-      onPress={() => handleMeetupPress(item.$id)}
-      onJoin={() => handleJoinMeetup(item.$id)}
-      isJoined={false} // TODO: Check if user is joined
-      index={index}
-    />
-  );
+
 
   const tokens = useTokens();
 

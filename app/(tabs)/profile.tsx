@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,36 +9,35 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
-  Dimensions,
 } from 'react-native';
 import { useAppStore } from '../../src/store/useAppStore';
 import { Circle, Meetup } from '../../src/types';
-import { getImageUri, formatDate } from '../../src/utils';
+import { getImageUri } from '../../src/utils';
 import CircleCard from '../../src/components/cards/CircleCard';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 export default function ProfileScreen() {
   const [userCircles, setUserCircles] = useState<Circle[]>([]);
   const [userMeetups, setUserMeetups] = useState<Meetup[]>([]);
-  const [showPastMeetups, setShowPastMeetups] = useState(false);
+
 
   const { user, circles, meetups } = useAppStore();
 
-  useEffect(() => {
-    if (user) {
-      loadUserData();
-    }
-  }, [user, circles, meetups]);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     // For now, show all circles as user circles (simplified)
     setUserCircles(circles.slice(0, 3));
 
     // Filter user's meetups (registered ones)
     const userMeetupsList = await useAppStore.getState().getUserMeetups();
     setUserMeetups(userMeetupsList);
-  };
+  }, [circles]);
+
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user, circles, meetups, loadUserData]);
 
   const handleEditProfile = () => {
     console.log('Navigate to edit profile');
@@ -61,10 +60,7 @@ export default function ProfileScreen() {
     return userMeetups.filter(meetup => new Date(meetup.date) > now);
   };
 
-  const getPastMeetups = () => {
-    const now = new Date();
-    return userMeetups.filter(meetup => new Date(meetup.date) <= now);
-  };
+
 
   const getMemberSinceDate = () => {
     if (!user?.joinedAt) return 'Recently';

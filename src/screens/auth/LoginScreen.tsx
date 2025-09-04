@@ -9,7 +9,6 @@ import {
   Platform,
   StatusBar,
   Alert,
-  StyleSheet,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -40,7 +39,7 @@ const LoginScreen = () => {
     // Animate form entrance
     formOpacity.value = withTiming(1, { duration: 600 });
     formTranslateY.value = withSpring(0, { damping: 15 });
-  }, []);
+  }, [formOpacity, formTranslateY]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -78,7 +77,7 @@ const LoginScreen = () => {
       } else {
         Alert.alert('Login Failed', 'Invalid email or password. Please try again.');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);

@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Image,
   Switch,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -115,7 +114,7 @@ const CreateMeetupScreen: React.FC<CreateMeetupScreenProps> = ({ circleId, onBac
       } else {
         Alert.alert('Error', 'Failed to create meetup. Please try again.');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);

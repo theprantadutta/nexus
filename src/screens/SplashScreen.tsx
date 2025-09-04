@@ -4,12 +4,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withSequence,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
-import { useAppStore } from '../store/useAppStore';
-import { router } from 'expo-router';
 
 const SplashScreen = () => {
   // Animation values
@@ -30,7 +26,7 @@ const SplashScreen = () => {
 
     taglineOpacity.value = withDelay(600, withSpring(1));
     taglineTranslateY.value = withDelay(600, withSpring(0));
-  }, []);
+  }, [logoOpacity, logoScale, titleOpacity, titleTranslateY, taglineOpacity, taglineTranslateY]);
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value }],

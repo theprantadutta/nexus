@@ -13,19 +13,12 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAppStore } from '../../store/useAppStore';
 import { getImageUri, formatTime } from '../../utils';
+import { chatService, ChatMessage, TypingIndicator } from '../../services/firebase/chat';
 
-interface Message {
-  $id: string;
-  text: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar?: string;
-  timestamp: string;
-  type: 'text' | 'image' | 'system';
-  status: 'sending' | 'sent' | 'delivered' | 'read';
-}
+// Using ChatMessage interface from chat service
 
 interface ChatRoomScreenProps {
   chatId: string;
@@ -42,104 +35,189 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
   isGroup,
   onBack,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  
+  const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { user } = useAppStore();
 
+  // Set up real-time message subscription
   useEffect(() => {
-    loadMessages();
-    // TODO: Set up real-time message listener
-  }, [chatId]);
+    if (!chatId || !user) return;
 
-  const loadMessages = () => {
-    // Mock messages - in real app, this would come from Firebase
-    const mockMessages: Message[] = [
-      {
-        $id: '1',
-        text: 'Hey everyone! Looking forward to our next meetup 🎉',
-        senderId: 'user2',
-        senderName: 'Sarah',
-        senderAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        type: 'text',
-        status: 'read',
+    const unsubscribeMessages = chatService.subscribeToMessages(
+      chatId,
+      (newMessages) => {
+        setMessages(newMessages);
+        // Auto-scroll to bottom when new messages arrive
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       },
-      {
-        $id: '2',
-        text: 'Same here! The AI workshop sounds amazing',
-        senderId: user?.$id || 'user1',
-        senderName: user?.name || 'You',
-        senderAvatar: user?.avatar,
-        timestamp: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-        type: 'text',
-        status: 'read',
-      },
-      {
-        $id: '3',
-        text: 'I\'ve prepared some interesting demos to share',
-        senderId: 'user3',
-        senderName: 'Mike',
-        senderAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-        type: 'text',
-        status: 'delivered',
-      },
-    ];
-    setMessages(mockMessages.reverse()); // Reverse to show latest at bottom
-  };
+      (error) => {
+        console.error('Message subscription error:', error);
+        Alert.alert('Error', 'Failed to load messages');
+      }
+    );
 
-  const handleSendMessage = () => {
-    if (!inputText.trim() || !user) return;
+    const unsubscribeTyping = chatService.subscribeToTypingIndicators(
+      chatId,
+      user.$id,
+      setTypingUsers
+    );
 
-    const newMessage: Message = {
-      $id: Date.now().toString(),
-      text: inputText.trim(),
-      senderId: user.$id,
-      senderName: user.name,
-      senderAvatar: user.avatar,
-      timestamp: new Date().toISOString(),
-      type: 'text',
-      status: 'sending',
+    return () => {
+      unsubscribeMessages();
+      unsubscribeTyping();
+      // Clear typing indicator on unmount
+      if (user) {
+        chatService.setTypingIndicator(chatId, user.$id, false);
+      }
+      // Clear typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
+  }, [chatId, user]);
 
-    setMessages(prev => [...prev, newMessage]);
+
+
+  // Handle sending messages
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !user || isLoading) return;
+
+    const messageText = inputText.trim();
     setInputText('');
+    setIsLoading(true);
 
-    // TODO: Send message to Firebase
-    // Simulate message sent
-    setTimeout(() => {
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.$id === newMessage.$id 
-            ? { ...msg, status: 'sent' }
-            : msg
-        )
+    try {
+      const result = await chatService.sendMessage(
+        chatId,
+        user.$id,
+        user.name,
+        messageText,
+        'text',
+        {
+          senderAvatar: user.avatar,
+        }
       );
-    }, 1000);
 
-    // Scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to send message');
+        setInputText(messageText); // Restore message text on error
+      }
+    } catch (error) {
+      console.error('Send message error:', error);
+      Alert.alert('Error', 'Failed to send message');
+      setInputText(messageText); // Restore message text on error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // Handle typing indicators
+  const handleTextChange = (text: string) => {
+    setInputText(text);
+
+    if (!user) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set typing indicator
+    if (text.trim()) {
+      chatService.setTypingIndicator(chatId, user.$id, true, user.name);
+
+      // Clear typing indicator after 3 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        chatService.setTypingIndicator(chatId, user.$id, false);
+      }, 3000);
+    } else {
+      chatService.setTypingIndicator(chatId, user.$id, false);
+    }
+  };
+
+  // Handle image sharing
   const handleImagePicker = () => {
     Alert.alert(
       'Share Image',
       'Choose an option',
       [
-        { text: 'Camera', onPress: () => console.log('Open camera') },
-        { text: 'Gallery', onPress: () => console.log('Open gallery') },
+        { text: 'Camera', onPress: () => pickImage('camera') },
+        { text: 'Gallery', onPress: () => pickImage('gallery') },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+  const pickImage = async (source: 'camera' | 'gallery') => {
+    try {
+      let result;
+
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission needed', 'Camera permission is required to take photos');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission needed', 'Gallery permission is required to select photos');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      }
+
+      if (!result.canceled && result.assets[0] && user) {
+        setIsLoading(true);
+
+        // Convert image to blob for upload
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+
+        const sendResult = await chatService.sendMessage(
+          chatId,
+          user.$id,
+          user.name,
+          '📷 Image',
+          'image',
+          {
+            imageFile: blob,
+            senderAvatar: user.avatar,
+          }
+        );
+
+        if (!sendResult.success) {
+          Alert.alert('Error', sendResult.error || 'Failed to send image');
+        }
+
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'Failed to process image');
+      setIsLoading(false);
+    }
+  };
+
+  const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
     const isOwnMessage = item.senderId === user?.$id;
     const showAvatar = !isOwnMessage && (
       index === messages.length - 1 || 
@@ -174,12 +252,31 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
           {showName && (
             <Text style={styles.senderName}>{item.senderName}</Text>
           )}
-          <Text style={[
-            styles.messageText,
-            isOwnMessage ? styles.ownMessageText : styles.otherMessageText
-          ]}>
-            {item.text}
-          </Text>
+
+          {item.type === 'image' && item.imageUrl ? (
+            <View>
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.messageImage}
+                resizeMode="cover"
+              />
+              {item.text !== '📷 Image' && (
+                <Text style={[
+                  styles.messageText,
+                  isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+                ]}>
+                  {item.text}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Text style={[
+              styles.messageText,
+              isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+            ]}>
+              {item.text}
+            </Text>
+          )}
           <View style={styles.messageFooter}>
             <Text style={[
               styles.messageTime,
@@ -207,8 +304,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
       <View style={styles.typingContainer}>
         <View style={styles.typingBubble}>
           <Text style={styles.typingText}>
-            {typingUsers.length === 1 
-              ? `${typingUsers[0]} is typing...`
+            {typingUsers.length === 1
+              ? `${typingUsers[0].userName} is typing...`
               : `${typingUsers.length} people are typing...`
             }
           </Text>
@@ -279,7 +376,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({
             style={styles.textInput}
             placeholder="Type a message..."
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleTextChange}
             multiline
             maxLength={1000}
             placeholderTextColor="#9CA3AF"
@@ -537,6 +634,12 @@ const styles = StyleSheet.create({
   sendIcon: {
     fontSize: 18,
     color: '#6B7280',
+  },
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 4,
   },
 });
 

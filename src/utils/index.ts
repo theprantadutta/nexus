@@ -1,4 +1,6 @@
 import { format, formatDistanceToNow, isToday, isTomorrow, isYesterday } from 'date-fns';
+import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 // Date formatting utilities
 export const formatDate = (date: string | Date): string => {
@@ -100,18 +102,15 @@ export const getRandomColor = (): string => {
 
 // Platform utilities
 export const isIOS = (): boolean => {
-  const { Platform } = require('react-native');
   return Platform.OS === 'ios';
 };
 
 export const isAndroid = (): boolean => {
-  const { Platform } = require('react-native');
   return Platform.OS === 'android';
 };
 
 // Haptic feedback
 export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' = 'light'): void => {
-  const { Haptics } = require('expo-haptics');
   switch (type) {
     case 'light':
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

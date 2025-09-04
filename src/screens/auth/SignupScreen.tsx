@@ -44,7 +44,7 @@ const SignupScreen = () => {
     // Animate form entrance
     formOpacity.value = withTiming(1, { duration: 600 });
     formTranslateY.value = withSpring(0, { damping: 15 });
-  }, []);
+  }, [formOpacity, formTranslateY]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -98,7 +98,7 @@ const SignupScreen = () => {
       } else {
         Alert.alert('Signup Failed', 'Unable to create account. Please try again.');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);

@@ -16,7 +16,7 @@ import GradientButton from '@/components/common/GradientButton';
 interface FilterOptions {
   distance: number;
   categories: string[];
-  sortBy: 'relevance' | 'distance' | 'newest' | 'popular';
+  sortBy: 'relevance' | 'distance' | 'newest' | 'popular' | 'recommended';
   showOnlineOnly: boolean;
   showFreeOnly: boolean;
   dateRange: 'anytime' | 'today' | 'this_week' | 'this_month';

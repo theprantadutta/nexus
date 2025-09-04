@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Circle, Meetup, Membership } from '../types';
 import { authService } from '../services/firebase/auth';
 import { databaseService } from '../services/firebase/database';
+import { chatService, Chat } from '../services/firebase/chat';
 
 // Helper functions for onboarding status using real AsyncStorage
 const ONBOARDING_KEY = '@nexus_onboarding_completed';
@@ -36,6 +37,10 @@ interface AppState {
   meetups: Meetup[];
   userMemberships: Membership[];
   selectedCircle: Circle | null;
+
+  // Chat state
+  chats: Chat[];
+  activeChat: Chat | null;
   
   // UI state
   isOnboarding: boolean;
@@ -63,7 +68,13 @@ interface AppState {
   getMeetupAttendees: (meetupId: string) => Promise<User[]>;
   checkMeetupRegistration: (meetupId: string) => Promise<boolean>;
   getUserMeetups: () => Promise<Meetup[]>;
-  
+
+  // Chat actions
+  loadUserChats: () => Promise<void>;
+  createDirectChat: (userId: string) => Promise<string | null>;
+  createCircleChat: (circleId: string, circleName: string) => Promise<string | null>;
+  setActiveChat: (chat: Chat | null) => void;
+
   // UI actions
   setOnboarding: (value: boolean) => void;
   setLoading: (value: boolean) => void;
@@ -78,6 +89,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   meetups: [],
   userMemberships: [],
   selectedCircle: null,
+
+  // Chat state
+  chats: [],
+  activeChat: null,
   isOnboarding: true,
 
   // Auth actions
@@ -427,6 +442,67 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('Get user meetups error:', error);
       return [];
     }
+  },
+
+  // Chat actions
+  loadUserChats: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    try {
+      const result = await databaseService.getUserChats(user.$id);
+      if (result.success && result.data) {
+        set({ chats: result.data });
+      }
+    } catch (error) {
+      console.error('Load user chats error:', error);
+    }
+  },
+
+  createDirectChat: async (userId: string) => {
+    const { user } = get();
+    if (!user) return null;
+
+    try {
+      const result = await databaseService.createDirectChat(user.$id, userId);
+      if (result.success && result.data) {
+        // Reload chats to include the new one
+        get().loadUserChats();
+        return result.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Create direct chat error:', error);
+      return null;
+    }
+  },
+
+  createCircleChat: async (circleId: string, circleName: string) => {
+    const { user } = get();
+    if (!user) return null;
+
+    try {
+      // Get circle members
+      const membersResult = await databaseService.getCircleMembers(circleId);
+      if (!membersResult.success || !membersResult.data) return null;
+
+      const participants = membersResult.data.map(member => member.$id);
+
+      const result = await chatService.createCircleChat(circleId, circleName, participants);
+      if (result.success && result.data) {
+        // Reload chats to include the new one
+        get().loadUserChats();
+        return result.data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Create circle chat error:', error);
+      return null;
+    }
+  },
+
+  setActiveChat: (chat: Chat | null) => {
+    set({ activeChat: chat });
   },
 
   // UI actions
